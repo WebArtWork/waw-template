@@ -80,3 +80,43 @@ const build = async function (waw) {
 };
 module.exports.build = build;
 module.exports.b = build;
+
+async function fetchInfo(url) {
+	try {
+		const response = await fetch(url);
+
+		if (!response.ok) {
+			throw new Error(`HTTP error! Status: ${response.status}`);
+		}
+
+		return await response.json();
+	} catch (error) {
+		console.error('Error:', error.message);
+	}
+}
+
+const fetch_module = async function (waw) {
+	if (!waw.config.fetch) {
+		console.warn('There is no configuration to fetch content');
+
+		process.exit();
+	}
+
+	for (const info in waw.config.fetch) {
+		const json = {};
+
+		json[info] = await fetchInfo(waw.config.fetch[info]);
+
+		fs.writeFileSync(
+			path.join(process.cwd(), info + '.json'),
+			JSON.stringify(json, null, 4)
+		);
+
+	}
+
+	console.log('Information has been fetched');
+
+	process.exit();
+}
+module.exports.fetch = fetch_module;
+module.exports.f = fetch_module;
