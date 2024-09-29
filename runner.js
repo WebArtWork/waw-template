@@ -75,6 +75,90 @@ const build = async function (waw) {
 			"utf8"
 		);
 	}
+
+	if (waw.config.build && waw.config.build.page) {
+		if (
+			typeof waw.config.build.page === 'object' &&
+			!Array.isArray(waw.config.build.page)
+		) {
+			waw.config.build.page = [waw.config.build.page];
+		}
+
+		for (const page of waw.config.build.page) {
+			if (
+				!page.json ||
+				!page.name ||
+				(
+					!page.folder &&
+					!page.url
+				)
+			) {
+				continue;
+			}
+
+			const localJson = typeof page.json === 'string' ?
+				JSON.parse(await fs.readFileSync(
+					path.join(process.cwd(), page.json + '.json'),
+					"utf8"
+				)) : page.json;
+
+			if (page.folder) {
+				const folder = path.join(process.cwd(), page.folder)
+
+				if (!fs.existsSync(folder)) {
+					fs.mkdirSync(folder);
+				}
+
+				for (const doc of localJson[page.json]) {
+					const json = {
+						...templateJson,
+						...waw.readJson(
+							path.join(
+								process.cwd(),
+								"pages",
+								page.name,
+								"page.json"
+							)
+						),
+						...(waw.config.build || {}),
+						...doc
+					};
+					fs.writeFileSync(
+						path.join(
+							folder,
+							(doc.nameUrl || doc._id) + '.html'
+						),
+						waw.wjst.compileFile(
+							path.join(process.cwd(), "dist", page.name + ".html")
+						)(json),
+						"utf8"
+					);
+				}
+			} else if (page.url) {
+				const json = {
+					...templateJson,
+					...waw.readJson(
+						path.join(
+							process.cwd(),
+							"pages",
+							page.name,
+							"page.json"
+						)
+					),
+					...(waw.config.build || {}),
+					...localJson
+				};
+				fs.writeFileSync(
+					path.join(process.cwd(), page.url + '.html'),
+					waw.wjst.compileFile(
+						path.join(process.cwd(), "dist", page.name + ".html")
+					)(json),
+					"utf8"
+				);
+			}
+		}
+	}
+
 	console.log("Template is builded");
 	process.exit(1);
 };
