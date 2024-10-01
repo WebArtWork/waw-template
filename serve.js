@@ -14,46 +14,39 @@ module.exports = function (waw) {
 	waw.serve(process.cwd(), {
 		prefix: template.prefix,
 	});
-	fs.mkdirSync(process.cwd() + "/pages", {
+	fs.mkdirSync(path.join(process.cwd(), "pages"), {
 		recursive: true,
 	});
 	waw.app.get("/reset", function (req, res) {
 		res.json(waw.now || "");
 	});
-	const compileScss = (root, file, name) => {
+	const compileScss = async (root, file, name) => {
 		if (
 			file.endsWith(".scss") &&
 			fs.existsSync(path.join(root, file))
 		) {
-			sass.render(
+			const result = await sass.compile(
+				path.join(root, file),
 				{
-					file: path.join(root, file),
-					outputStyle: "compressed",
-				},
-				function (err, result) {
-					if (err) {
-						throw err;
-					}
-					if (result) {
-						fs.writeFile(
-							path.join(process.cwd(), "css", name),
-							result.css,
-							"utf8",
-							(err) => {
-								if (err) throw err;
-								waw.now = Date.now();
-							}
-						);
-					}
+					style: "compressed",
+				}
+			);
+			fs.writeFile(
+				path.join(process.cwd(), "css", name),
+				result.css,
+				"utf8",
+				(err) => {
+					if (err) throw err;
+					waw.now = Date.now();
 				}
 			);
 		}
 	};
-	compileScss(process.cwd() + "/css", "index.scss", "index.css");
+	compileScss(path.join(process.cwd(), "css"), "index.scss", "index.css");
 	/*
 	 *	Pages Management
 	 */
-	let pages = waw.getDirectories(process.cwd() + "/pages");
+	let pages = waw.getDirectories(path.join(process.cwd(), "pages"));
 	const serve = function (page) {
 		let url = "/" + ((page.name != "index" && page.name) || "");
 		waw.app.get(url, function (req, res) {
@@ -73,8 +66,9 @@ module.exports = function (waw) {
 			res.send(html);
 		});
 		waw.build(process.cwd(), page.name);
+		const pagesRoot = path.join(process.cwd(), "pages", page.name);
 		compileScss(
-			process.cwd() + "/pages/" + page.name,
+			pagesRoot,
 			"index.scss",
 			page.name + ".css"
 		);
@@ -85,7 +79,7 @@ module.exports = function (waw) {
 			}
 		).on('all', (action, file) => {
 			compileScss(
-				process.cwd() + "/pages/" + page.name,
+				pagesRoot,
 				file,
 				page.name + ".css"
 			);
@@ -99,11 +93,13 @@ module.exports = function (waw) {
 			);
 		});
 	};
+
 	for (let i = pages.length - 1; i >= 0; i--) {
 		let root = pages[i];
 		pages[i] = pages[i].split(path.sep).pop();
 		let name = pages[i];
-		if (fs.existsSync(process.cwd() + "/pages/" + name + "/page.json")) {
+		const pagesPageJsonRoot = path.join(process.cwd(), "pages", name, "page.json");
+		if (fs.existsSync(pagesPageJsonRoot)) {
 			pages[i] = {
 				config: JSON.parse(JSON.stringify(template)),
 				dist: process.cwd() + "/dist/" + name + ".html",
@@ -111,7 +107,7 @@ module.exports = function (waw) {
 				name: name,
 			};
 			let page = JSON.parse(
-				fs.readFileSync(process.cwd() + "/pages/" + name + "/page.json")
+				fs.readFileSync(pagesPageJsonRoot)
 			);
 			for (let each in page) {
 				pages[i].config[each] = page[each];
@@ -141,6 +137,12 @@ module.exports = function (waw) {
 	};
 	chokidar.watch(
 		process.cwd() + "/index.html",
+		{
+			recursive: true,
+		}
+	).on('all', reset);
+	chokidar.watch(
+		process.cwd() + "/base.html",
 		{
 			recursive: true,
 		}
@@ -176,9 +178,9 @@ module.exports = function (waw) {
 			recursive: true,
 		},
 	).on('all', reset);
-         /*
-	 *	Proxy Management
-	 */
+	/*
+	*	Proxy Management
+	*/
 	const http = waw.config.api ? waw.http(waw.config.api, waw.config.apiPort || 443) : null;
 	waw.use((req, res, next) => {
 		if (req.originalUrl.startsWith('/api/') && waw.config.api) {
