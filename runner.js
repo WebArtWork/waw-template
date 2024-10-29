@@ -28,7 +28,7 @@ const new_page = function (waw) {
 	fs.writeFileSync(path.join(location, "page.json"), code, "utf8");
 
 	console.log("Page has been created");
-	process.exit(1);
+	process.exit();
 };
 module.exports.page = new_page;
 module.exports.p = new_page;
@@ -160,7 +160,7 @@ const build = async function (waw) {
 	}
 
 	console.log("Template is builded");
-	process.exit(1);
+	process.exit();
 };
 module.exports.build = build;
 module.exports.b = build;
