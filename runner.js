@@ -33,6 +33,52 @@ const new_page = function (waw) {
 module.exports.page = new_page;
 module.exports.p = new_page;
 
+async function fetchInfo(url) {
+	try {
+		const response = await fetch(url);
+
+		if (!response.ok) {
+			throw new Error(`HTTP error! Status: ${response.status}`);
+		}
+
+		return await response.json();
+	} catch (error) {
+		console.error('Error:', error.message);
+	}
+}
+
+const fetch_documents = async function (waw, exit = true) {
+	if (!waw.config.fetch) {
+		if (exit) {
+			console.warn('There is no configuration to fetch content');
+
+			process.exit();
+		} else {
+			return;
+		}
+	}
+
+	for (const info in waw.config.fetch) {
+		const json = {};
+
+		json[info] = await fetchInfo(waw.config.fetch[info]);
+
+		fs.writeFileSync(
+			path.join(process.cwd(), info + '.json'),
+			JSON.stringify(json, null, 4)
+		);
+
+	}
+
+	if (exit) {
+		console.log('Information has been fetched');
+
+		process.exit();
+	}
+}
+module.exports.fetch = fetch_documents;
+module.exports.f = fetch_documents;
+
 const build = async function (waw) {
 	if (!fs.existsSync(process.cwd(), "template.json")) {
 		console.log(
@@ -40,6 +86,7 @@ const build = async function (waw) {
 		);
 		process.exit(1);
 	}
+
 	const wjst = require(path.join(waw._modules.sem.__root, "wjst"));
 	const sem = require(path.join(waw._modules.sem.__root, "index"));
 	const core = require(path.join(waw._modules.core.__root, "index"));
@@ -53,10 +100,29 @@ const build = async function (waw) {
 		);
 		process.exit(1);
 	}
+
+	await fetch_documents(waw, false);
+
 	const folders = waw.getDirectories(path.join(process.cwd(), "pages"));
-	const templateJson = waw.readJson(
+	let templateJson = waw.readJson(
 		path.join(process.cwd(), "template.json")
 	);
+
+	if (waw.config.fetch) {
+		for (const docs in waw.config.fetch) {
+			try {
+				templateJson = {
+					...templateJson,
+					...waw.readJson(
+						path.join(process.cwd(), docs + ".json")
+					)
+				}
+			} catch (error) {
+				console.error(`using fetch for ${docs}: ${error}`);
+			}
+		}
+	}
+
 	for (const folder of folders) {
 		const page = path.basename(folder);
 		waw.build(process.cwd(), page);
@@ -164,43 +230,3 @@ const build = async function (waw) {
 };
 module.exports.build = build;
 module.exports.b = build;
-
-async function fetchInfo(url) {
-	try {
-		const response = await fetch(url);
-
-		if (!response.ok) {
-			throw new Error(`HTTP error! Status: ${response.status}`);
-		}
-
-		return await response.json();
-	} catch (error) {
-		console.error('Error:', error.message);
-	}
-}
-
-const fetch_module = async function (waw) {
-	if (!waw.config.fetch) {
-		console.warn('There is no configuration to fetch content');
-
-		process.exit();
-	}
-
-	for (const info in waw.config.fetch) {
-		const json = {};
-
-		json[info] = await fetchInfo(waw.config.fetch[info]);
-
-		fs.writeFileSync(
-			path.join(process.cwd(), info + '.json'),
-			JSON.stringify(json, null, 4)
-		);
-
-	}
-
-	console.log('Information has been fetched');
-
-	process.exit();
-}
-module.exports.fetch = fetch_module;
-module.exports.f = fetch_module;
