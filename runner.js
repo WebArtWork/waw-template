@@ -318,39 +318,34 @@ const build = async function (waw) {
 module.exports.build = build;
 module.exports.b = build;
 
-const remove = async function (waw) {
-	fs.rmdirSync(path.join(process.cwd(), 'pages', { recursive: true }));
+const _remove = (fileOrFolder) => {
+	fileOrFolder = path.join(process.cwd(), fileOrFolder);
 
-	fs.unlinkSync(path.join(process.cwd(), 'base.html'));
+	if (fs.existsSync(fileOrFolder)) {
+		const stat = fs.lstatSync(fileOrFolder);
 
-	if (!fs.existsSync(path.join(process.cwd(), 'dist'))) {
-		fs.rmdirSync(path.join(process.cwd(), 'dist'), { recursive: true });
+		if (stat.isDirectory()) {
+			fs.rmSync(fileOrFolder, { recursive: true });
+		} else {
+			fs.rmSync(fileOrFolder);
+		}
 	}
+}
+const remove = async function (waw) {
+	_remove('pages');
+
+	_remove('dist');
+
+	_remove('base.html');
 
 	if (waw.config.remove) {
 		for (let fileOrFolder of waw.config.remove) {
-			fileOrFolder = path.join(process.cwd(), fileOrFolder);
-
-			// Check if the path exists
-			if (!fs.existsSync(fileOrFolder)) {
-				console.error('Path does not exist:', fileOrFolder);
-				return;
-			}
-
-			// Check if the path is a directory or a file
-			const stat = fs.lstatSync(fileOrFolder);
-
-			if (stat.isDirectory()) {
-				fs.rmdirSync(fileOrFolder, { recursive: true });
-			} else if (stat.isFile()) {
-				fs.unlinkSync(fileOrFolder);
-			} else {
-				console.error('Path is neither a file nor a directory:', fileOrFolder);
-			}
+			_remove(fileOrFolder);
 		}
 	}
 
 	console.log("Files and folders been removed");
+
 	process.exit();
 };
 module.exports.remove = remove;
