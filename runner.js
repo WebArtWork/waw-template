@@ -1,6 +1,30 @@
 const fs = require("fs");
 const path = require("path");
 const scripts = require("./index");
+
+const getTemplateJson = (waw) => {
+	let templateJson = waw.readJson(
+		path.join(process.cwd(), "template.json")
+	);
+
+	if (waw.config.fetch) {
+		for (const docs in waw.config.fetch) {
+			try {
+				templateJson = {
+					...templateJson,
+					...waw.readJson(
+						path.join(process.cwd(), docs + ".json")
+					)
+				}
+			} catch (error) {
+				console.error(`using fetch for ${docs}: ${error}`);
+			}
+		}
+	}
+
+	return templateJson;
+}
+
 const new_page = function (waw) {
 	waw.argv.shift();
 	if (!waw.argv.length) {
@@ -32,6 +56,84 @@ const new_page = function (waw) {
 };
 module.exports.page = new_page;
 module.exports.p = new_page;
+
+async function generate_documents(waw, exit = true) {
+	if (waw.config.generate) {
+		if (exit) {
+			const wjst = require(path.join(waw._modules.sem.__root, "wjst"));
+			const sem = require(path.join(waw._modules.sem.__root, "index"));
+			const core = require(path.join(waw._modules.core.__root, "index"));
+			core(waw);
+			sem(waw);
+			wjst(waw);
+			scripts(waw);
+		}
+
+		for (const _url in waw.config.generate) {
+			let url = _url.split('/');
+
+			let file = url.pop();
+
+			const folder = url.length ? url.join('/') : '';
+
+			if (folder) {
+				const folderPath = path.join(process.cwd(), folder);
+
+				if (!fs.existsSync(folderPath)) {
+					fs.mkdirSync(folderPath);
+				}
+			}
+
+			const json = getTemplateJson(waw);
+
+			const page = waw.config.generate[_url];
+
+			waw.build(process.cwd(), page);
+
+			if (file.startsWith(':')) {
+				file = file.split(':')[1].split('.');
+
+				if (file.length === 2 && Array.isArray(json[file[0]])) {
+					for (const doc of json[file[0]]) {
+						fs.writeFileSync(
+							path.join(process.cwd(), folder, doc[file[1]] + '.html'),
+							waw.wjst.compileFile(
+								path.join(process.cwd(), "dist", page + ".html")
+							)({
+								...json,
+								...doc
+							}),
+							"utf8"
+						);
+					}
+				} else if (exit) {
+					console.error('Bad configuration for url ' + _url);
+
+					process.exit();
+				}
+
+			} else {
+				fs.writeFileSync(
+					path.join(process.cwd(), folder, page + '.html'),
+					waw.wjst.compileFile(
+						path.join(process.cwd(), "dist", page + ".html")
+					)(json),
+					"utf8"
+				);
+			}
+		}
+
+		console.log("Your files been generated");
+	} else {
+		console.log("You don't have any generate configuration");
+	}
+	if (exit) {
+		process.exit();
+	}
+}
+
+module.exports.generate = generate_documents;
+module.exports.g = generate_documents;
 
 async function fetchInfo(url) {
 	try {
@@ -103,26 +205,9 @@ const build = async function (waw) {
 
 	await fetch_documents(waw, false);
 
+	const templateJson = getTemplateJson(waw);
+
 	const folders = waw.getDirectories(path.join(process.cwd(), "pages"));
-	let templateJson = waw.readJson(
-		path.join(process.cwd(), "template.json")
-	);
-
-	if (waw.config.fetch) {
-		for (const docs in waw.config.fetch) {
-			try {
-				templateJson = {
-					...templateJson,
-					...waw.readJson(
-						path.join(process.cwd(), docs + ".json")
-					)
-				}
-			} catch (error) {
-				console.error(`using fetch for ${docs}: ${error}`);
-			}
-		}
-	}
-
 	for (const folder of folders) {
 		const page = path.basename(folder);
 		waw.build(process.cwd(), page);
@@ -225,8 +310,48 @@ const build = async function (waw) {
 		}
 	}
 
+	await generate_documents(waw, false);
+
 	console.log("Template is builded");
 	process.exit();
 };
 module.exports.build = build;
 module.exports.b = build;
+
+const remove = async function (waw) {
+	fs.rmdirSync(path.join(process.cwd(), 'pages'));
+
+	fs.unlinkSync(path.join(process.cwd(), 'base.html'));
+
+	if (!fs.existsSync(path.join(process.cwd(), 'dist'))) {
+		fs.rmdirSync(path.join(process.cwd(), 'dist'));
+	}
+
+	if (waw.config.remove) {
+		for (let fileOrFolder of waw.config.remove) {
+			fileOrFolder = path.join(process.cwd(), fileOrFolder);
+
+			// Check if the path exists
+			if (!fs.existsSync(fileOrFolder)) {
+				console.error('Path does not exist:', fileOrFolder);
+				return;
+			}
+
+			// Check if the path is a directory or a file
+			const stat = fs.lstatSync(fileOrFolder);
+
+			if (stat.isDirectory()) {
+				fs.rmSync(fileOrFolder);
+			} else if (stat.isFile()) {
+				fs.unlinkSync(fileOrFolder);
+			} else {
+				console.error('Path is neither a file nor a directory:', fileOrFolder);
+			}
+		}
+	}
+
+	console.log("Files and folders been removed");
+	process.exit();
+};
+module.exports.remove = remove;
+module.exports.r = remove;
