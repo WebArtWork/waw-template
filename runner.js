@@ -319,12 +319,12 @@ module.exports.build = build;
 module.exports.b = build;
 
 const remove = async function (waw) {
-	fs.rmdirSync(path.join(process.cwd(), 'pages'));
+	fs.rmdirSync(path.join(process.cwd(), 'pages', { recursive: true }));
 
 	fs.unlinkSync(path.join(process.cwd(), 'base.html'));
 
 	if (!fs.existsSync(path.join(process.cwd(), 'dist'))) {
-		fs.rmdirSync(path.join(process.cwd(), 'dist'));
+		fs.rmdirSync(path.join(process.cwd(), 'dist'), { recursive: true });
 	}
 
 	if (waw.config.remove) {
@@ -341,7 +341,7 @@ const remove = async function (waw) {
 			const stat = fs.lstatSync(fileOrFolder);
 
 			if (stat.isDirectory()) {
-				fs.rmSync(fileOrFolder);
+				fs.rmdirSync(fileOrFolder, { recursive: true });
 			} else if (stat.isFile()) {
 				fs.unlinkSync(fileOrFolder);
 			} else {
