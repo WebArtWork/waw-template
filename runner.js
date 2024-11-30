@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const scripts = require("./index");
+const scripts = require("./index.api");
 
 const getTemplateJson = (waw) => {
 	let templateJson = waw.readJson(
