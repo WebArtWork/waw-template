@@ -5,17 +5,20 @@ module.exports = function (waw) {
 	waw.derer.setFilter("translate", (phrase) => {
 		return phrase;
 	});
+
 	waw.wjst.setFilter("mongodate", function (_id) {
 		if (!_id) return new Date();
 		let timestamp = _id.toString().substring(0, 8);
 		return new Date(parseInt(timestamp, 16) * 1000);
 	});
+
 	let template = {};
 	if (fs.existsSync(process.cwd() + sep + "template.json")) {
 		template = JSON.parse(
 			fs.readFileSync(process.cwd() + sep + "template.json")
 		);
 	}
+
 	waw.build = function (root, page) {
 		fs.mkdirSync(path.join(root, "dist"), { recursive: true });
 		const indexPath = fs.existsSync(path.join(root, "base.html"))

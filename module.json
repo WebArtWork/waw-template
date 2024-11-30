@@ -1,9 +1,8 @@
 {
 	"repo" : "git@github.com:WebArtWork/waw-template.git",
-	"name": "Template",
+	"name": "Wjst",
 	"priority": 905,
 	"runner": "runner.js",
-	"router": "index.js serve.js",
 	"dependencies": {
 		"sass": "*"
 	}
