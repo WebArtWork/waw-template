@@ -3,7 +3,9 @@ const path = require("path");
 const sass = require("sass");
 const chokidar = require('chokidar');
 
-module.exports = function (waw) {
+module.exports = async function (waw) {
+	await waw.wait(1000);
+	
 	let template = {};
 	if (fs.existsSync(path.join(process.cwd(), "template.json"))) {
 		template = JSON.parse(
