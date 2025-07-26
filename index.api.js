@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const sep = path.sep;
+
 module.exports = function (waw) {
 	waw.derer.setFilter("translate", (phrase) => {
 		return phrase;
@@ -34,6 +35,7 @@ module.exports = function (waw) {
 			return console.log("In template " + root + " missing page " + page);
 		}
 		let code = fs.readFileSync(indexPath, "utf8");
+
 		if (
 			fs.existsSync(path.join(root, "pages", page, "index.scss")) ||
 			fs.existsSync(path.join(root, "pages", page, page + ".scss"))
@@ -105,6 +107,22 @@ module.exports = function (waw) {
 			);
 		} else code = code.replace("<!-- JS -->", "");
 
+		code = resolveImports(code, root);
+
 		fs.writeFileSync(path.join(root, "dist", page + ".html"), code, "utf8");
+	};
+
+	const resolveImports = (html, basePath) => {
+		return html.replace(
+			/<!--\s*IMPORT:\s*(.*?)\s*-->/g,
+			(_, importPath) => {
+				const fullPath = path.join(basePath, importPath.trim());
+				if (fs.existsSync(fullPath)) {
+					return fs.readFileSync(fullPath, "utf-8");
+				} else {
+					return `<!-- IMPORT FAILED: ${importPath} -->`;
+				}
+			}
+		);
 	};
 };
